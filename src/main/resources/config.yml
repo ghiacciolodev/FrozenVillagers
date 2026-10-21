@@ -1,0 +1,75 @@
+# FrozenVillagers. Every option is explained in the README.
+
+# Worlds where the automatic optimizations run. An empty list means all
+# worlds. Villagers frozen by staff with /fv freeze stay frozen everywhere.
+worlds: []
+
+# How often, in ticks, each villager is checked again. The checks are spread
+# over these ticks, so they never all happen at once. 100 = 5 seconds.
+check-interval: 100
+
+# /fv freeze, for staff.
+freeze:
+  # Frozen villagers always have their AI, item pickup and pushing turned
+  # off. With true their physics are off too: they no longer fall or get
+  # pushed by water. Saves a bit more, but only use it for villagers that
+  # stand on solid ground.
+  disable-physics: false
+  # The largest radius allowed in /fv freeze, unfreeze and auto.
+  max-command-radius: 32
+
+# Villagers the plugin slows down get their AI back for "active" ticks
+# every "cycle" ticks, and have it off the rest of the time. The default is
+# 1 second every 10 seconds.
+pulse:
+  cycle: 200
+  active: 20
+
+# Villagers that can't move and have nothing to look for, except a bed they
+# can never reach: locked in a 1x1 cell or in a vehicle, with a profession,
+# traded at least once, without a bed. They are slowed down. Since they
+# can't move anyway, players don't see any difference.
+trapped:
+  enabled: true
+
+# Surplus villagers: adults with no profession (or nitwits) that have had no
+# bed for a while, packed together with many others like them. This is what
+# piles up next to a breeder. They are slowed down until they find a bed or
+# a job, or the crowd shrinks. Iron farm villagers always have a bed, so they
+# are never touched.
+surplus:
+  enabled: true
+  # How many villagers without a bed and a job there must be in the 3x3
+  # chunks around a villager for it to count as surplus.
+  crowd: 12
+  # Ticks without a bed before a villager can count as surplus. 6000 = 5 minutes.
+  grace: 6000
+  # Turn off pushing between surplus villagers. Saves work in big crowds, but
+  # entity cramming no longer kills them, so a crowd can grow without limit.
+  disable-collisions: false
+
+# Stops breeding when there is too much surplus around the parents, even if
+# it is stored in other chunks. No villager is ever removed.
+births:
+  enabled: false
+  # Villagers without a bed and a job (babies included) allowed within
+  # "radius" blocks of the parents before babies stop being born.
+  max-surplus: 24
+  radius: 64
+
+# Villagers frozen or slowed down by the plugin can't walk to their
+# workstation, so they restock when a player opens their trades, once per
+# window below. Day times: 0 = 06:00, 1000 = 07:00, 6000 = 12:00, 11000 = 17:00.
+restock:
+  enabled: true
+  times: [1000, 6000, 11000]
+  # reset-uses: trades are refilled and prices don't go up with demand.
+  # vanilla: the vanilla restock, prices go up a bit for trades used a lot.
+  mode: reset-uses
+  # Only restock villagers whose workstation is still there and close to them.
+  require-workstation: false
+  # Max distance in blocks from the villager's feet to its workstation.
+  workstation-reach: 2.5
+  # Sent to the player when a villager restocks. Empty sends nothing.
+  # MiniMessage format, %next% is the time until the next restock.
+  message: ""
