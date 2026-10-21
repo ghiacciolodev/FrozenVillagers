@@ -1,0 +1,19 @@
+name: FrozenVillagers
+version: '${version}'
+main: dev.ghiacciolo.frozenvillagers.FrozenVillagers
+api-version: '26.2'
+description: Cuts villager lag without changing how villagers play.
+author: ghiacciolodev
+website: https://github.com/ghiacciolodev/FrozenVillagers
+
+commands:
+  frozenvillagers:
+    description: Manage FrozenVillagers.
+    usage: /<command> <freeze|unfreeze|auto|adopt|inspect|status|reload>
+    aliases: [fv]
+    permission: frozenvillagers.admin
+
+permissions:
+  frozenvillagers.admin:
+    description: Allows using /frozenvillagers.
+    default: op
