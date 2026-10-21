@@ -1,0 +1,14 @@
+name: FvTest
+version: '1'
+main: fvtest.FvTest
+api-version: '26.2'
+depend: [FrozenVillagers]
+description: Test helper for FrozenVillagers. Never install it on a real server.
+
+commands:
+  fvtest:
+    permission: fvtest.use
+
+permissions:
+  fvtest.use:
+    default: op
