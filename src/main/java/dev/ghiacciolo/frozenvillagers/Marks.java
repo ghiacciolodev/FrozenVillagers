@@ -1,5 +1,6 @@
 package dev.ghiacciolo.frozenvillagers;
 
+import java.util.List;
 import java.util.Locale;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Villager;
@@ -19,6 +20,15 @@ final class Marks {
 
     /** Villagers with this scoreboard tag are never touched by the automatic features. */
     static final String IGNORE_TAG = "frozenvillagers_ignore";
+
+    // How VillagerOptimizer, BubbleVillagers and AntiVillagerLag mark the
+    // villagers they optimized. Those plugins turn the AI off again whenever
+    // such a villager loads, so /fv adopt removes these markers.
+    private static final List<NamespacedKey> OTHER_OPTIMIZERS = List.of(
+            NamespacedKey.fromString("villageroptimizer:optimization-type"),
+            NamespacedKey.fromString("antivillagerlag:marker"),
+            NamespacedKey.fromString("antivillagerlag:disabledbyblock"),
+            NamespacedKey.fromString("antivillagerlag:disabledbyworkstation"));
 
     private final NamespacedKey mode;
     final NamespacedKey aiOff;
@@ -59,6 +69,19 @@ final class Marks {
         } else {
             data.set(mode, PersistentDataType.STRING, value.name().toLowerCase(Locale.ROOT));
         }
+    }
+
+    /** Removes the markers of other optimizer plugins. Returns true if there were any. */
+    boolean clearOtherOptimizers(Villager villager) {
+        PersistentDataContainer data = villager.getPersistentDataContainer();
+        boolean found = false;
+        for (NamespacedKey key : OTHER_OPTIMIZERS) {
+            if (data.has(key)) {
+                data.remove(key);
+                found = true;
+            }
+        }
+        return found;
     }
 
     boolean has(Villager villager, NamespacedKey key) {

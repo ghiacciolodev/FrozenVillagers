@@ -81,6 +81,10 @@ final class Commands implements TabExecutor {
      * BubbleVillagers or VillagerOptimizer before removing it. Normally the
      * plugin never touches those. After adopting, they are handled like any
      * other villager: trapped ones are slowed down, the others get their AI back.
+     *
+     * <p>The other plugin's markers are removed too, otherwise it would turn
+     * the AI off again the next time the villager loads, as long as it is
+     * still installed.
      */
     private void adopt(CommandSender sender, String target) {
         List<Villager> villagers = targets(sender, target);
@@ -88,8 +92,12 @@ final class Commands implements TabExecutor {
             return;
         }
         int adopted = 0;
+        int unmarked = 0;
         Marks marks = plugin.marks();
         for (Villager villager : villagers) {
+            if (marks.clearOtherOptimizers(villager)) {
+                unmarked++;
+            }
             if (!villager.isAware() && !marks.has(villager, marks.aiOff)) {
                 marks.set(villager, marks.aiOff);
                 marks.setMode(villager, Mode.AUTO);
@@ -99,6 +107,9 @@ final class Commands implements TabExecutor {
         }
         sender.sendMessage("Adopted: " + adopted + " villager" + (adopted == 1 ? "" : "s")
                 + " whose AI another plugin had turned off.");
+        if (unmarked > 0) {
+            sender.sendMessage("Removed the markers of another optimizer plugin from " + unmarked + ".");
+        }
     }
 
     /**
