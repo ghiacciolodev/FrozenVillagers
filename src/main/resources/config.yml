@@ -23,7 +23,7 @@ freeze:
   # pushed by water. Saves a bit more, but only use it for villagers that
   # stand on solid ground.
   disable-physics: false
-  # The largest radius allowed in /fv freeze, unfreeze and auto.
+  # The largest radius allowed in /fv freeze, unfreeze, auto and adopt.
   max-command-radius: 32
 
 # Villagers the plugin slows down get their AI back for "active" ticks
