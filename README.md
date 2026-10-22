@@ -232,13 +232,16 @@ Run `/fv reload` after changing the config. Bad values are reported in the conso
 
 ## Switching from BubbleVillagers or VillagerOptimizer
 
-Villagers optimized by those plugins have their AI turned off, and FrozenVillagers never touches villagers another plugin changed. So when you switch:
+Villagers optimized by those plugins have their AI turned off, and FrozenVillagers never touches villagers another plugin changed. `/fv adopt` hands them over:
 
-1. Remove the old plugin and install FrozenVillagers.
-2. `/fv status` shows how many loaded villagers still have their AI off from the old plugin.
-3. Go to each trading hall and run `/fv adopt 32`, or from the console `/fv adopt @e[type=villager]` for every loaded villager.
+1. Put FrozenVillagers in `plugins` and restart. The old plugin can stay installed for now.
+2. `/fv status` shows how many loaded villagers have their AI off from the old plugin.
+3. Adopt them: `/fv adopt 32` around each trading hall, or `/fv adopt @e[type=villager]` from the console for every loaded villager.
+4. Remove the old plugin and restart.
 
-Adopted villagers are handled like any other: trapped ones are slowed down and restock and level up again, the others get their AI back. Villagers in unloaded chunks keep the old state until you adopt them when they are loaded.
+Adopting also removes the marker the old plugin keeps on each villager (BubbleVillagers, VillagerOptimizer and AntiVillagerLag use one). Without that, the old plugin would turn their AI off again the next time they load, as long as it is installed. Adopted villagers are then handled like any other: trapped ones are slowed down and restock and level up again, the others get their AI back. Villagers in unloaded chunks keep the old state until you adopt them when they are loaded.
+
+This was tested on a server with 4,000 villagers optimized by BubbleVillagers: adopting took under a second, the villagers stayed adopted after a restart with both plugins installed, and after BubbleVillagers was removed.
 
 ## Benchmark
 
@@ -276,6 +279,21 @@ Slowed down villagers get their AI back for 1 second every 10, so some of them a
 
 FrozenVillagers slowed down 875 of the 960 adults. The 160 babies and the iron farm villagers kept their full AI, so breeders and farms keep working.
 
+### Stress test with a player online
+
+4,000 villagers around spawn, with a player walking among them and the default activation ranges: 10 rows of 100 trading cells (workstation in front, an open block above it to click the villager, glass roof), 40 pens with 50 jobless villagers each, and a field with 1,000 villagers with jobs, free to walk, without beds. The plugin was installed from the start with its automatic features off, then turned on with `/fv reload` in the same session. For this test only, `surplus.grace` was 10 seconds instead of 5 minutes, to see the effect right away.
+
+| | MSPT (1 minute) | TPS |
+|---|---|---|
+| Automatic features off | **208 ms** | 4.8 |
+| Automatic features on | **88 ms** (-58%) | 11.3 |
+| Plus the field frozen by staff with `/fv freeze` | **33 ms** (-84%) | **20.0** |
+| All 4,000 frozen by staff | **7.2 ms** (-97%) | **20.0** |
+
+Turning the features on took effect within a minute and covered all 1,000 trading cells and the 2,000 villagers in the pens. The 1,000 free villagers in the field kept their full AI until staff froze them. With 4,000 villagers the plugin itself cost about 0.25 ms per tick.
+
+In a trading hall the slowed down villagers still move a little: each one gets its AI for 1 second every 10, and the seconds are spread out, so at any moment about 1 in 10 turns its head or shuffles in its cell. Use `/fv freeze` on a hall to keep it completely still.
+
 ## Compatibility
 
 - Paper 26.2 and Java 25. Not tested on Folia, Purpur or Spigot.
@@ -291,7 +309,7 @@ The jar is in `build/libs`. Gradle downloads Java 25 if it isn't installed.
 
 ## Testing
 
-The plugin has unit tests for the restock and level logic, a functional test suite of 124 checks that runs against a real Paper server, including restarts and removing the plugin, and a benchmark. See [testing/README.md](testing/README.md).
+The plugin has unit tests for the restock and level logic, a functional test suite of 127 checks that runs against a real Paper server, including restarts and removing the plugin, and a benchmark. See [testing/README.md](testing/README.md).
 
 ## License
 

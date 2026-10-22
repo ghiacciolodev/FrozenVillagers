@@ -13,7 +13,7 @@ Never run the suite or the benchmark on a server with players. They build struct
 - `suite.py`: the functional tests, grouped by feature:
   - trapped villagers: 1x1 cells, fences, walls they can jump, wooden doors, minecarts, beds, villagers that never traded, the ignore tag, NPCs, opening and closing a cell
   - hurt villagers waking up
-  - villagers changed by other plugins: AI off, NoAI, item pickup off, and `/fv adopt`
+  - villagers changed by other plugins: AI off, NoAI, item pickup off, and `/fv adopt` with the BubbleVillagers marker
   - staff commands: freeze, unfreeze, auto, physics, bad selectors
   - restocks: the times, once per window, missed windows, `/time set` backwards, full trades, both modes, the workstation option, vanilla restocks and the dawn catch-up blocked without changing prices, normal villagers untouched
   - level ups: pulsed, frozen and frozen without physics villagers, the new trades, no extra level afterwards, XP without a planned level up, master villagers
@@ -22,7 +22,7 @@ Never run the suite or the benchmark on a server with players. They build struct
   - config: world filter, warnings for bad values
   - chunk reloads, disabling the plugin, restarts, removing the plugin, and the plugin's own cost in `/fv status`
 - `benchmark.py`: builds the benchmark world and measures it.
-- `helper/`: a small plugin used only by the tests. Commands can't see the aware or collidable flags, set brain memories, make a villager earn XP the way a real trade does, or place a block the way a player does, so the helper does that. Never install it on a real server.
+- `helper/`: a small plugin used only by the tests. Commands can't see the aware or collidable flags, set brain memories, make a villager earn XP the way a real trade does, place a block the way a player does, or put the marker BubbleVillagers uses on a villager, so the helper does that. Never install it on a real server.
 - `rcon.py`: the RCON client shared by the scripts.
 
 ## Functional tests
