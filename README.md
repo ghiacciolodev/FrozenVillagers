@@ -5,6 +5,7 @@
 <h1 align="center">FrozenVillagers</h1>
 
 <p align="center">
+  <a href="https://modrinth.com/plugin/frozenvillagers">Modrinth</a> ·
   <a href="https://github.com/ghiacciolodev/FrozenVillagers/releases">GitHub Releases</a>
 </p>
 
@@ -61,7 +62,7 @@ What the plugin never does:
 
 ## Installation
 
-1. Download the jar from the [releases](https://github.com/ghiacciolodev/FrozenVillagers/releases) and put it in the `plugins` folder.
+1. Download the jar from [Modrinth](https://modrinth.com/plugin/frozenvillagers) or the [GitHub releases](https://github.com/ghiacciolodev/FrozenVillagers/releases) and put it in the `plugins` folder.
 2. Start the server. The defaults work out of the box: trapped and surplus villagers are handled automatically.
 3. Optionally freeze your biggest trading halls with `/fv freeze <radius>`, and check what the plugin does with `/fv status` and `/fv inspect`.
 
