@@ -188,6 +188,8 @@ Without an argument a command works on the villager you are looking at. A number
 ```yaml
 worlds: []
 check-interval: 100
+migration:
+  adopt-other-optimizers: false
 freeze:
   disable-physics: false
   max-command-radius: 32
@@ -216,6 +218,7 @@ restock:
 
 - `worlds`: worlds where the automatic features run. Empty means all. Staff freezes work everywhere.
 - `check-interval`: ticks between two checks of the same villager. At least 20.
+- `migration.adopt-other-optimizers`: adopt villagers optimized by BubbleVillagers, VillagerOptimizer or AntiVillagerLag on their own when their chunk loads, see [Switching](#switching-from-bubblevillagers-or-villageroptimizer).
 - `freeze.disable-physics`: frozen villagers also lose their physics (NoAI). Only for villagers standing on solid ground.
 - `freeze.max-command-radius`: the largest radius for `/fv freeze`, `unfreeze`, `auto` and `adopt`.
 - `pulse.cycle`, `pulse.active`: slowed down villagers have their AI for `active` ticks every `cycle` ticks.
@@ -238,6 +241,8 @@ Villagers optimized by those plugins have their AI turned off, and FrozenVillage
 2. `/fv status` shows how many loaded villagers have their AI off from the old plugin.
 3. Adopt them: `/fv adopt 32` around each trading hall, or `/fv adopt @e[type=villager]` from the console for every loaded villager.
 4. Remove the old plugin and restart.
+
+`/fv adopt` only reaches villagers in loaded chunks. To adopt the ones in the rest of the world as players visit them, turn on `migration.adopt-other-optimizers` and run `/fv reload`: every villager with the old plugin's marker is then adopted when its chunk loads. The marker says for sure which plugin optimized the villager, so villagers whose AI other plugins turned off, like NPCs or shops, are still left alone. Turn the option off again once `/fv status` shows no villagers without AI because of another plugin.
 
 Adopting also removes the marker the old plugin keeps on each villager (BubbleVillagers, VillagerOptimizer and AntiVillagerLag use one). Without that, the old plugin would turn their AI off again the next time they load, as long as it is installed. Adopted villagers are then handled like any other: trapped ones are slowed down and restock and level up again, the others get their AI back. Villagers in unloaded chunks keep the old state until you adopt them when they are loaded.
 
@@ -309,7 +314,7 @@ The jar is in `build/libs`. Gradle downloads Java 25 if it isn't installed.
 
 ## Testing
 
-The plugin has unit tests for the restock and level logic, a functional test suite of 127 checks that runs against a real Paper server, including restarts and removing the plugin, and a benchmark. See [testing/README.md](testing/README.md).
+The plugin has unit tests for the restock and level logic, a functional test suite of 131 checks that runs against a real Paper server, including restarts and removing the plugin, and a benchmark. See [testing/README.md](testing/README.md).
 
 ## License
 
