@@ -25,6 +25,10 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class FvTest extends JavaPlugin {
 
+    // The marker BubbleVillagers and VillagerOptimizer put on optimized villagers.
+    private static final org.bukkit.NamespacedKey BV_MARK =
+            org.bukkit.NamespacedKey.fromString("villageroptimizer:optimization-type");
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length < 1) {
@@ -113,6 +117,11 @@ public final class FvTest extends JavaPlugin {
             }
             case "aware" -> villager.setAware(Boolean.parseBoolean(args[2]));
             case "npc" -> villager.setMetadata("NPC", new FixedMetadataValue(this, true));
+            case "bvmark" -> villager.getPersistentDataContainer().set(BV_MARK,
+                    org.bukkit.persistence.PersistentDataType.STRING, "COMMAND");
+            case "hasbvmark" -> {
+                return "bvmark=" + villager.getPersistentDataContainer().has(BV_MARK);
+            }
             case "home" -> villager.setMemory(MemoryKey.HOME, at(villager, args));
             case "jobsite" -> villager.setMemory(MemoryKey.JOB_SITE, at(villager, args));
             case "xp" -> villager.setVillagerExperience(Integer.parseInt(args[2]));

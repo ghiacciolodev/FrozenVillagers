@@ -224,6 +224,29 @@ def test_trapped():
     check('NPC from another plugin is left alone', state('npc') == 'normal', inspect('npc'))
     check('NPC got its AI back', q('npc').get('aware') == 'true', q('npc'))
 
+    # The usual trading hall cell: workstation in front, an open block above it
+    # to click the villager, and a roof that leaves no room to jump on it.
+    x, z = site(24)
+    cell(x, z)
+    rc(f'setblock {x} {Y} {z - 1} loom')
+    rc(f'setblock {x} {Y + 1} {z - 1} air')
+    rc(f'fill {x - 1} {Y + 2} {z - 1} {x + 1} {Y + 2} {z + 1} glass')
+    summon('click', x, z, profession='shepherd')
+    wait_checks()
+    check('a cell open above the workstation for clicking is still a cell', state('click') == 'pulsed (trapped)',
+          inspect('click'))
+
+    # Without the roof the villager can jump on the workstation and walk out.
+    x, z = site(25)
+    cell(x, z)
+    rc(f'setblock {x} {Y} {z - 1} loom')
+    rc(f'setblock {x} {Y + 1} {z - 1} air')
+    rc(f'fill {x - 1} {Y + 2} {z - 1} {x + 1} {Y + 2} {z + 1} air')
+    summon('noroof', x, z, profession='shepherd')
+    wait_checks()
+    check('without a roof it can jump on the workstation, so it is left alone', state('noroof') == 'normal',
+          inspect('noroof'))
+
     # Open the first cell: the villager wakes up and gets everything back.
     x, z = site(0)
     rc(f'fill {x + 1} {Y} {z} {x + 1} {Y + 1} {z} air')
@@ -271,8 +294,11 @@ def test_foreign():
     rc(f'fv unfreeze {sel("foreign")}')
     check('freeze and unfreeze keep the other plugin\'s AI off', q('foreign').get('aware') == 'false', q('foreign'))
 
+    rc(f'fvtest bvmark {sel("foreign")}')
     out = rc(f'fv adopt {sel("foreign")}')
     check('/fv adopt takes over a villager another plugin froze', 'Adopted: 1 villager' in out, out)
+    check('...and removes the BubbleVillagers marker, so it no longer refreezes it',
+          'Removed the markers' in out and 'bvmark=false' in rc(f'fvtest hasbvmark {sel("foreign")}'), out)
     check('...in a cell it is pulsed like ours', state('foreign') == 'pulsed (trapped)', inspect('foreign'))
     x, z = site(23)
     summon('migrated', x, z)

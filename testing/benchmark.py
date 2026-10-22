@@ -84,6 +84,9 @@ def trading_hall(x0, z0, frames):
         profession = PROFESSIONS[i % len(PROFESSIONS)]
         rc(f'fill {x} {Y} {z0} {x} {Y + 1} {z0} air')
         rc(f'setblock {x} {Y} {z0 - 1} {WORKSTATIONS[profession]}')
+        # Open above the workstation so players can click the villager, like
+        # real halls. The glass roof leaves no room to jump on the workstation.
+        rc(f'setblock {x} {Y + 1} {z0 - 1} air')
         level = random.randint(1, 5)
         villager(x, z0, profession, level, LEVEL_XP[level], 'hall')
     for i in range(frames):
