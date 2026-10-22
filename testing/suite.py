@@ -32,6 +32,7 @@ Y = -60  # feet height on the default flat world
 DEFAULTS = {
     'worlds': '[]',
     'check-interval': 20,
+    'migration': {'adopt-other-optimizers': 'false'},
     'freeze': {'disable-physics': 'false', 'max-command-radius': 32},
     'pulse': {'cycle': 40, 'active': 8},
     'trapped': {'enabled': 'true'},
@@ -310,6 +311,32 @@ def test_foreign():
           q('migrated'))
     out = rc(f'fv adopt {sel("migrated")}')
     check('adopting a villager with its AI on does nothing', 'Adopted: 0 villagers' in out, out)
+
+    # Villagers BubbleVillagers froze, in cells, with and without its marker.
+    def frozen_by_other(tag, i, marker):
+        x, z = site(i)
+        cell(x, z)
+        summon(tag, x, z)
+        rc(f'tag {sel(tag)} add frozenvillagers_ignore')
+        wait_checks()  # the plugin lets go of it first
+        rc(f'fvtest aware {sel(tag)} false')
+        if marker:
+            rc(f'fvtest bvmark {sel(tag)}')
+        rc(f'tag {sel(tag)} remove frozenvillagers_ignore')
+
+    frozen_by_other('bvhall', 26, True)
+    frozen_by_other('othernpc', 27, False)
+    wait_checks()
+    check('with adopt-other-optimizers off, a BubbleVillagers villager is left alone',
+          state('bvhall') == 'normal' and q('bvhall').get('aware') == 'false', inspect('bvhall'))
+    config(migration__adopt_other_optimizers='true')
+    wait_checks()
+    check('with it on, a BubbleVillagers villager is adopted by itself', state('bvhall') == 'pulsed (trapped)',
+          inspect('bvhall'))
+    check('...and loses the BubbleVillagers marker', 'bvmark=false' in rc(f'fvtest hasbvmark {sel("bvhall")}'))
+    check('...but a villager another plugin froze without that marker is left alone',
+          state('othernpc') == 'normal' and q('othernpc').get('aware') == 'false', inspect('othernpc'))
+    config()
 
     x, z = site(12)
     cell(x, z)

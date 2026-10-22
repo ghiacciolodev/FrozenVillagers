@@ -13,7 +13,7 @@ Never run the suite or the benchmark on a server with players. They build struct
 - `suite.py`: the functional tests, grouped by feature:
   - trapped villagers: 1x1 cells, fences, walls they can jump, wooden doors, minecarts, beds, villagers that never traded, the ignore tag, NPCs, opening and closing a cell
   - hurt villagers waking up
-  - villagers changed by other plugins: AI off, NoAI, item pickup off, and `/fv adopt` with the BubbleVillagers marker
+  - villagers changed by other plugins: AI off, NoAI, item pickup off, `/fv adopt` with the BubbleVillagers marker, and adopting them on their own with `migration.adopt-other-optimizers`
   - staff commands: freeze, unfreeze, auto, physics, bad selectors
   - restocks: the times, once per window, missed windows, `/time set` backwards, full trades, both modes, the workstation option, vanilla restocks and the dawn catch-up blocked without changing prices, normal villagers untouched
   - level ups: pulsed, frozen and frozen without physics villagers, the new trades, no extra level afterwards, XP without a planned level up, master villagers
