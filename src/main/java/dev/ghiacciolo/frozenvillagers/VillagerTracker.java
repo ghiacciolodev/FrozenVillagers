@@ -328,6 +328,12 @@ final class VillagerTracker implements Listener {
             untrack(entry.id);
             return;
         }
+        // Only when switching plugins: the marker says for sure which plugin
+        // turned the AI off, so NPCs and other plugins' villagers are safe.
+        if (settings.adoptOtherOptimizers && marks.hasOtherOptimizer(villager)) {
+            marks.clearOtherOptimizers(villager);
+            takeOver(villager);
+        }
         Location location = villager.getLocation();
         boolean bed = villager.getMemory(MemoryKey.HOME) != null;
         boolean idle = !bed && isJobless(villager.getProfession());
@@ -520,6 +526,20 @@ final class VillagerTracker implements Listener {
         pulseBuckets.get(entry.pulsePhase).remove(entry);
         entry.control = Control.NONE;
         check(entry);
+    }
+
+    /**
+     * Takes over a villager whose AI another plugin turned off, so from now
+     * on it is handled like any other. Returns true if there was one to take.
+     * The next check decides what to do with it.
+     */
+    boolean takeOver(Villager villager) {
+        if (villager.isAware() || marks.has(villager, marks.aiOff)) {
+            return false;
+        }
+        marks.set(villager, marks.aiOff);
+        marks.setMode(villager, Mode.AUTO);
+        return true;
     }
 
     /** Whether the plugin itself turned this villager's AI off. */

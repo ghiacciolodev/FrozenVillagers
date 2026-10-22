@@ -93,14 +93,11 @@ final class Commands implements TabExecutor {
         }
         int adopted = 0;
         int unmarked = 0;
-        Marks marks = plugin.marks();
         for (Villager villager : villagers) {
-            if (marks.clearOtherOptimizers(villager)) {
+            if (plugin.marks().clearOtherOptimizers(villager)) {
                 unmarked++;
             }
-            if (!villager.isAware() && !marks.has(villager, marks.aiOff)) {
-                marks.set(villager, marks.aiOff);
-                marks.setMode(villager, Mode.AUTO);
+            if (plugin.tracker().takeOver(villager)) {
                 plugin.tracker().checkNow(villager);
                 adopted++;
             }

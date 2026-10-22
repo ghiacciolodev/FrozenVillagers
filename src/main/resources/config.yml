@@ -8,6 +8,14 @@ worlds: []
 # over these ticks, so they never all happen at once. 100 = 5 seconds.
 check-interval: 100
 
+# For switching from BubbleVillagers, VillagerOptimizer or AntiVillagerLag.
+# With true, every villager those plugins optimized is adopted on its own
+# when its chunk loads, like /fv adopt does. Villagers whose AI any other
+# plugin turned off are still left alone. Turn it off again once
+# /fv status shows no villagers without AI because of another plugin.
+migration:
+  adopt-other-optimizers: false
+
 # /fv freeze, for staff.
 freeze:
   # Frozen villagers always have their AI, item pickup and pushing turned

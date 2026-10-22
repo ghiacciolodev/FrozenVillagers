@@ -18,6 +18,8 @@ final class Settings {
     final Set<String> worlds;
     final int checkInterval;
 
+    final boolean adoptOtherOptimizers;
+
     final boolean freezeDisablesPhysics;
     final int maxCommandRadius;
 
@@ -56,6 +58,8 @@ final class Settings {
             }
         }
         checkInterval = atLeast(config, "check-interval", 100, 20);
+
+        adoptOtherOptimizers = config.getBoolean("migration.adopt-other-optimizers", false);
 
         freezeDisablesPhysics = config.getBoolean("freeze.disable-physics", false);
         maxCommandRadius = atLeast(config, "freeze.max-command-radius", 32, 1);

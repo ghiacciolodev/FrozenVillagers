@@ -71,6 +71,17 @@ final class Marks {
         }
     }
 
+    /** Whether another optimizer plugin marked this villager as optimized. */
+    boolean hasOtherOptimizer(Villager villager) {
+        PersistentDataContainer data = villager.getPersistentDataContainer();
+        for (NamespacedKey key : OTHER_OPTIMIZERS) {
+            if (data.has(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Removes the markers of other optimizer plugins. Returns true if there were any. */
     boolean clearOtherOptimizers(Villager villager) {
         PersistentDataContainer data = villager.getPersistentDataContainer();
