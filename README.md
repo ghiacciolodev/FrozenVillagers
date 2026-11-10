@@ -9,7 +9,7 @@
   <a href="https://github.com/ghiacciolodev/FrozenVillagers/releases">GitHub Releases</a>
 </p>
 
-A Paper plugin that cuts villager lag without changing how villagers play. Made for Paper 26.2.
+A Paper plugin that cuts villager lag without changing how villagers play. Made for Paper 26.2 and 26.3.
 
 ## Contents
 
@@ -302,7 +302,7 @@ In a trading hall the slowed down villagers still move a little: each one gets i
 
 ## Compatibility
 
-- Paper 26.2 and Java 25. Not tested on Folia, Purpur or Spigot.
+- Paper 26.2 and 26.3, Java 25. The same jar works on both: the full test suite passes on 26.2 (build 133) and 26.3 (build 248). Not tested on Folia, Purpur or Spigot.
 - For plugins that open villager trades in their own way, `FrozenVillagers#restockIfDue(Villager)` restocks a villager like a player click does.
 
 ## Building

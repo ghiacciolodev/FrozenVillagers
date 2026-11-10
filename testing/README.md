@@ -27,7 +27,7 @@ Never run the suite or the benchmark on a server with players. They build struct
 
 ## Functional tests
 
-1. Use a fresh Paper 26.2 server with a flat world. In `server.properties`:
+1. Use a fresh Paper 26.2 or 26.3 server with a flat world. In `server.properties`:
 
    ```
    level-type=minecraft\:flat
@@ -77,7 +77,7 @@ The benchmark world has 1,146 villagers, laid out like on a busy survival server
 
 Use a separate server, not the one for the functional tests, so their villagers don't get in the way:
 
-1. A fresh Paper 26.2 server with a flat world and RCON, without any plugin.
+1. A fresh Paper 26.2 or 26.3 server with a flat world and RCON, without any plugin.
 2. In `spigot.yml`, set `entity-activation-range.villagers` to `0`. No player is online during the benchmark, and with the default range every villager would count as far from players, which skips most of its AI. With `0` every villager runs its full AI, like with players nearby.
 3. Start the server and build the world:
 
