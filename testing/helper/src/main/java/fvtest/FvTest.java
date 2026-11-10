@@ -63,7 +63,8 @@ public final class FvTest extends JavaPlugin {
             var replaced = block.getState();
             block.setType(org.bukkit.Material.matchMaterial(args[4]));
             var event = new org.bukkit.event.block.BlockPlaceEvent(block, replaced, block.getRelative(0, -1, 0),
-                    new org.bukkit.inventory.ItemStack(block.getType()), null, true);
+                    new org.bukkit.inventory.ItemStack(block.getType()), null, true,
+                    org.bukkit.inventory.EquipmentSlot.HAND);
             getServer().getPluginManager().callEvent(event);
             return "placed " + block.getType();
         }

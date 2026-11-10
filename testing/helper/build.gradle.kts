@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:26.2.build.133-stable")
+    compileOnly("io.papermc.paper:paper-api:26.3.build.248-stable")
     // The plugin under test, built first with ./gradlew build from the root.
     compileOnly(fileTree("../../build/libs") { include("FrozenVillagers-*.jar") })
 }
