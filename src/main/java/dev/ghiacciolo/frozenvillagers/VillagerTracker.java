@@ -356,7 +356,9 @@ final class VillagerTracker implements Listener {
         Location location = villager.getLocation();
         boolean bed = villager.getMemory(MemoryKey.HOME) != null;
         boolean jobless = isJobless(villager.getProfession());
-        boolean idle = !bed && jobless;
+        // NPCs and ignored villagers are never surplus, so they don't make a crowd
+        // or count for the birth limit either.
+        boolean idle = !bed && jobless && !isIgnored(villager);
         updateIdle(entry, villager, location, idle);
 
         // Levelling up needs the AI for a moment, the check after it decides again.
@@ -408,8 +410,7 @@ final class VillagerTracker implements Listener {
         if (villager.getScoreboardTags().contains(Marks.IGNORE_TAG)) {
             return new Why("ignore tag", "it has the " + Marks.IGNORE_TAG + " tag");
         }
-        // Citizens and similar plugins mark their NPCs like this.
-        if (villager.hasMetadata("NPC")) {
+        if (isNpc(villager)) {
             return new Why("NPC", "it is an NPC from another plugin");
         }
         if (!villager.isAware() && !marks.has(villager, marks.aiOff)) {
@@ -445,7 +446,7 @@ final class VillagerTracker implements Listener {
             return new Why("surplus off in the config", "it has no job and no bed, but surplus.enabled is false");
         }
         long since = marks.getLong(villager, marks.homelessSince, Long.MAX_VALUE);
-        long homeless = villager.getWorld().getGameTime() - since;
+        long homeless = homelessClock() - since;
         if (homeless < settings.surplusGrace) {
             return new Why("homeless for a short time", "it has no job and no bed, but only for "
                     + RestockWindows.formatTicks(Math.max(0, homeless)) + ", surplus.grace is "
@@ -464,6 +465,23 @@ final class VillagerTracker implements Listener {
             return new Why("raid nearby", "a raid is going on nearby");
         }
         return null;
+    }
+
+    // Citizens and similar plugins mark their NPCs like this.
+    private static boolean isNpc(Villager villager) {
+        return villager.hasMetadata("NPC");
+    }
+
+    private static boolean isIgnored(Villager villager) {
+        return isNpc(villager) || villager.getScoreboardTags().contains(Marks.IGNORE_TAG);
+    }
+
+    /**
+     * The clock for homeless_since. Every world has its own game time, so the
+     * main world's is used: a villager that changes world keeps a valid value.
+     */
+    private long homelessClock() {
+        return plugin.getServer().getWorlds().getFirst().getGameTime();
     }
 
     private static boolean isJobless(Profession profession) {
@@ -488,7 +506,7 @@ final class VillagerTracker implements Listener {
         // When it lost its bed, for the surplus grace time. Written only when it changes.
         boolean stored = marks.has(villager, marks.homelessSince);
         if (idle && !stored) {
-            marks.setLong(villager, marks.homelessSince, villager.getWorld().getGameTime());
+            marks.setLong(villager, marks.homelessSince, homelessClock());
         } else if (!idle && stored) {
             marks.remove(villager, marks.homelessSince);
         }

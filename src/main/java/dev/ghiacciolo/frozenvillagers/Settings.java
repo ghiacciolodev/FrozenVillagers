@@ -48,6 +48,10 @@ final class Settings {
 
     final List<String> warnings = new ArrayList<>();
 
+    // check-interval and pulse.cycle each create one set per tick, so a typo
+    // like 1000000 would create a million of them. One minute is plenty.
+    private static final int MAX_TICKS = 1200;
+
     Settings(FileConfiguration config, Server server) {
         worlds = new HashSet<>(config.getStringList("worlds"));
         for (String name : worlds) {
@@ -58,14 +62,14 @@ final class Settings {
                         + "Check the name, it is case sensitive.");
             }
         }
-        checkInterval = atLeast(config, "check-interval", 100, 20);
+        checkInterval = between(config, "check-interval", 100, 20, MAX_TICKS);
 
         adoptOtherOptimizers = config.getBoolean("migration.adopt-other-optimizers", false);
 
         freezeDisablesPhysics = config.getBoolean("freeze.disable-physics", false);
         maxCommandRadius = atLeast(config, "freeze.max-command-radius", 32, 1);
 
-        pulseCycle = atLeast(config, "pulse.cycle", 200, 20);
+        pulseCycle = between(config, "pulse.cycle", 200, 20, MAX_TICKS);
         int active = atLeast(config, "pulse.active", 20, 1);
         if (active >= pulseCycle) {
             warnings.add("pulse.active must be lower than pulse.cycle, using " + pulseCycle / 10 + ".");
@@ -103,6 +107,15 @@ final class Settings {
         if (value < min) {
             warnings.add(path + " must be at least " + min + ", using " + fallback + ".");
             return fallback;
+        }
+        return value;
+    }
+
+    private int between(FileConfiguration config, String path, int fallback, int min, int max) {
+        int value = atLeast(config, path, fallback, min);
+        if (value > max) {
+            warnings.add(path + " must be at most " + max + ", using " + max + ".");
+            return max;
         }
         return value;
     }
