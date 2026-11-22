@@ -128,7 +128,7 @@ final class VillagerTracker implements Listener {
         }
         for (Tracked entry : tracked.values()) {
             entry.levelingUp = false;
-            if (entry.control == Control.PULSED) {
+            if (entry.control == Control.PULSED || entry.control == Control.ASLEEP) {
                 apply(entry, Control.NONE, null);
             } else if (entry.control == Control.FROZEN) {
                 // It may be awake for a level up right now.
@@ -296,14 +296,29 @@ final class VillagerTracker implements Listener {
         }
     }
 
-    /** Gives a slowed down villager its full AI for a while. */
+    /**
+     * Gives a slowed down or asleep villager its full AI for a while. A pulsed
+     * one goes back to sleep at the end of its next pulse after that, an
+     * asleep one right when the time is up.
+     */
     private void wake(Tracked entry, int ticks) {
-        if (entry.control != Control.PULSED) {
+        if (entry.control != Control.PULSED && entry.control != Control.ASLEEP) {
             return;
         }
         entry.awakeUntil = Math.max(entry.awakeUntil, plugin.getServer().getCurrentTick() + ticks);
         if (marks.has(entry.villager, marks.aiOff)) {
             entry.villager.setAware(true);
+        }
+        if (entry.control == Control.ASLEEP) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> sleepAgain(entry), ticks);
+        }
+    }
+
+    private void sleepAgain(Tracked entry) {
+        if (tracked.get(entry.id) == entry && entry.control == Control.ASLEEP
+                && !entry.isAwakeForAReason(plugin.getServer().getCurrentTick())
+                && marks.has(entry.villager, marks.aiOff)) {
+            entry.villager.setAware(false);
         }
     }
 
@@ -321,6 +336,10 @@ final class VillagerTracker implements Listener {
         });
     }
 
+    /** Why the last check decided what it did: a short label and the full explanation. */
+    private record Why(String label, String detail) {
+    }
+
     /** Decides what the plugin should do with a villager, and does it. */
     private void check(Tracked entry) {
         Villager villager = entry.villager;
@@ -336,7 +355,8 @@ final class VillagerTracker implements Listener {
         }
         Location location = villager.getLocation();
         boolean bed = villager.getMemory(MemoryKey.HOME) != null;
-        boolean idle = !bed && isJobless(villager.getProfession());
+        boolean jobless = isJobless(villager.getProfession());
+        boolean idle = !bed && jobless;
         updateIdle(entry, villager, location, idle);
 
         // Levelling up needs the AI for a moment, the check after it decides again.
@@ -345,88 +365,105 @@ final class VillagerTracker implements Listener {
         }
 
         Mode mode = marks.mode(villager);
-        Control desired;
+        Control desired = Control.NONE;
         Reason reason = null;
+        Why why;
         if (mode == Mode.FROZEN) {
             desired = Control.FROZEN;
-            entry.why = "frozen by staff";
-        } else {
-            String blocker = autoBlocker(villager, mode);
-            if (blocker != null) {
-                desired = Control.NONE;
-                entry.why = blocker;
-            } else if (isTrapped(villager, bed)) {
-                desired = Control.PULSED;
+            why = new Why("frozen by staff", "frozen by staff with /fv freeze");
+        } else if ((why = autoBlocker(villager, mode)) != null) {
+            // Left alone, why says why.
+        } else if (bed) {
+            why = new Why("has a bed", "it has a bed. Villagers with a bed are never touched,"
+                    + " so iron farms and breeders keep working");
+        } else if (!jobless) {
+            why = whyNotTrapped(villager);
+            if (why == null) {
+                desired = settings.trappedPulse ? Control.PULSED : Control.ASLEEP;
                 reason = Reason.TRAPPED;
-                entry.why = "it can't leave its cell and has no bed to look for";
-            } else if (isSurplus(entry, villager, location, idle)) {
+                why = new Why("trapped", "it can't leave its cell, has a job it can't lose and no bed to look for");
+            }
+        } else {
+            why = whyNotSurplus(entry, villager, location);
+            if (why == null) {
                 desired = Control.PULSED;
                 reason = Reason.SURPLUS;
-                entry.why = "it is surplus: no bed and no job, in a crowd of others like it";
-            } else {
-                desired = Control.NONE;
-                entry.why = "nothing to optimize, it uses its AI";
+                why = new Why("surplus", "it is surplus: no bed and no job, in a crowd of others like it");
             }
         }
+        entry.whyShort = why.label();
+        entry.why = why.detail();
         apply(entry, desired, reason);
         levelUpCheck.accept(entry);
     }
 
     /** Returns why the automatic features must leave a villager alone, or null. */
-    private String autoBlocker(Villager villager, Mode mode) {
+    private Why autoBlocker(Villager villager, Mode mode) {
         if (mode == Mode.EXCLUDED) {
-            return "excluded by staff";
+            return new Why("excluded by staff", "excluded by staff with /fv unfreeze, /fv auto undoes it");
         }
         if (!settings.isActiveIn(villager.getWorld())) {
-            return "the plugin is not active in this world";
+            return new Why("world not in the config", "the plugin is not active in this world, see worlds in the config");
         }
         if (villager.getScoreboardTags().contains(Marks.IGNORE_TAG)) {
-            return "it has the " + Marks.IGNORE_TAG + " tag";
+            return new Why("ignore tag", "it has the " + Marks.IGNORE_TAG + " tag");
         }
         // Citizens and similar plugins mark their NPCs like this.
         if (villager.hasMetadata("NPC")) {
-            return "it is an NPC from another plugin";
+            return new Why("NPC", "it is an NPC from another plugin");
         }
         if (!villager.isAware() && !marks.has(villager, marks.aiOff)) {
-            return "its AI was turned off by another plugin";
+            return new Why("AI off by another plugin", "its AI was turned off by another plugin, /fv adopt takes it over");
         }
         if (!villager.hasAI() && !marks.has(villager, marks.physicsOff)) {
-            return "it has NoAI from another plugin";
+            return new Why("NoAI by another plugin", "it has NoAI from another plugin");
         }
         if (!villager.isAdult()) {
-            return "it is a baby";
+            return new Why("baby", "it is a baby, babies are never touched so breeders keep working");
         }
         return null;
     }
 
-    private boolean isTrapped(Villager villager, boolean bed) {
-        if (!settings.trappedEnabled || bed || isJobless(villager.getProfession())) {
-            return false;
+    /** For a villager with a job and no bed: why it is not trapped, or null if it is. */
+    private Why whyNotTrapped(Villager villager) {
+        if (!settings.trappedEnabled) {
+            return new Why("trapped off in the config", "it has a job and no bed, but trapped.enabled is false");
         }
         // A villager that never traded can still change job, which is how
         // players reroll trades. That needs the full AI.
         if (!Levels.isTradeLocked(villager.getVillagerLevel(), villager.getVillagerExperience())) {
-            return false;
+            return new Why("never traded", "it never traded, so it can still change job."
+                    + " Players reroll trades this way, and that needs its AI. One trade locks it");
         }
-        return Cells.isTrapped(villager);
+        String exit = Cells.findExit(villager);
+        return exit == null ? null : new Why("can leave its cell", "it is not trapped: " + exit);
     }
 
-    private boolean isSurplus(Tracked entry, Villager villager, Location location, boolean idle) {
-        if (!settings.surplusEnabled || !idle) {
-            return false;
+    /** For a villager without a job and a bed: why it is not surplus, or null if it is. */
+    private Why whyNotSurplus(Tracked entry, Villager villager, Location location) {
+        if (!settings.surplusEnabled) {
+            return new Why("surplus off in the config", "it has no job and no bed, but surplus.enabled is false");
         }
         long since = marks.getLong(villager, marks.homelessSince, Long.MAX_VALUE);
-        if (villager.getWorld().getGameTime() - since < settings.surplusGrace) {
-            return false;
+        long homeless = villager.getWorld().getGameTime() - since;
+        if (homeless < settings.surplusGrace) {
+            return new Why("homeless for a short time", "it has no job and no bed, but only for "
+                    + RestockWindows.formatTicks(Math.max(0, homeless)) + ", surplus.grace is "
+                    + RestockWindows.formatTicks(settings.surplusGrace));
         }
         int needed = settings.surplusCrowd;
         if (entry.control == Control.PULSED && entry.reason == Reason.SURPLUS) {
             needed = (int) Math.ceil(needed * CROWD_HYSTERESIS);
         }
-        if (countIdleAround(villager.getWorld(), location.getBlockX() >> 4, location.getBlockZ() >> 4, 1) < needed) {
-            return false;
+        int crowd = countIdleAround(villager.getWorld(), location.getBlockX() >> 4, location.getBlockZ() >> 4, 1);
+        if (crowd < needed) {
+            return new Why("small crowd", "it has no job and no bed, but only " + crowd
+                    + " villagers like it are in the 3x3 chunks around it, surplus needs " + needed);
         }
-        return !isNearRaid(villager.getWorld(), location);
+        if (isNearRaid(villager.getWorld(), location)) {
+            return new Why("raid nearby", "a raid is going on nearby");
+        }
+        return null;
     }
 
     private static boolean isJobless(Profession profession) {
@@ -550,7 +587,8 @@ final class VillagerTracker implements Listener {
     private void apply(Tracked entry, Control desired, Reason reason) {
         Villager villager = entry.villager;
         boolean entering = entry.control != desired;
-        if (isRestockedByPlugin(desired, reason) && (entering || !isRestockedByPlugin(entry.control, entry.reason))) {
+        if (Tracked.isRestockedByPlugin(desired, reason)
+                && (entering || !Tracked.isRestockedByPlugin(entry.control, entry.reason))) {
             startedHandling.accept(villager);
         }
         if (desired != Control.PULSED) {
@@ -573,6 +611,15 @@ final class VillagerTracker implements Listener {
                     restorePhysics(villager);
                 }
             }
+            case ASLEEP -> {
+                pickupOff(villager);
+                collisionsOff(villager);
+                restorePhysics(villager);
+                // Hurt or woken by a block placed nearby: sleepAgain turns it off when the time is up.
+                if (entering || !entry.isAwakeForAReason(plugin.getServer().getCurrentTick())) {
+                    aiOff(villager);
+                }
+            }
             case PULSED -> {
                 pickupOff(villager);
                 if (reason == Reason.TRAPPED || settings.surplusDisablesCollisions) {
@@ -590,10 +637,6 @@ final class VillagerTracker implements Listener {
         }
         entry.control = desired;
         entry.reason = reason;
-    }
-
-    private static boolean isRestockedByPlugin(Control control, Reason reason) {
-        return control == Control.FROZEN || (control == Control.PULSED && reason == Reason.TRAPPED);
     }
 
     // setAware(false) stops the AI step: sensors, brain, pathfinding, the job,

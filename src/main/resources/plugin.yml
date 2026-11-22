@@ -9,7 +9,7 @@ website: https://github.com/ghiacciolodev/FrozenVillagers
 commands:
   frozenvillagers:
     description: Manage FrozenVillagers.
-    usage: /<command> <freeze|unfreeze|auto|adopt|inspect|status|reload>
+    usage: /<command> <check|inspect|scan|status|freeze|unfreeze|auto|adopt|reload>
     aliases: [fv]
     permission: frozenvillagers.admin
 

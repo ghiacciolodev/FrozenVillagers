@@ -26,19 +26,25 @@ freeze:
   # The largest radius allowed in /fv freeze, unfreeze, auto and adopt.
   max-command-radius: 32
 
-# Villagers the plugin slows down get their AI back for "active" ticks
-# every "cycle" ticks, and have it off the rest of the time. The default is
-# 1 second every 10 seconds.
+# Villagers the plugin slows down (surplus villagers) get their AI back for
+# "active" ticks every "cycle" ticks, and have it off the rest of the time.
+# The default is 1 second every 10 seconds.
 pulse:
   cycle: 200
   active: 20
 
 # Villagers that can't move and have nothing to look for, except a bed they
 # can never reach: locked in a 1x1 cell or in a vehicle, with a profession,
-# traded at least once, without a bed. They are slowed down. Since they
-# can't move anyway, players don't see any difference.
+# traded at least once, without a bed. Their AI is turned off. They still
+# trade, restock and level up, and wake up when hurt or when a bed,
+# workstation or bell is placed nearby. Since they can't move anyway,
+# players don't see any difference.
 trapped:
   enabled: true
+  # true gives them their AI for a moment every pulse.cycle ticks, like
+  # surplus villagers. Costs a lot more and they gain nothing from it: on
+  # every pulse they search again for a bed they can never reach.
+  pulse: false
 
 # Surplus villagers: adults with no profession (or nitwits) that have had no
 # bed for a while, packed together with many others like them. This is what

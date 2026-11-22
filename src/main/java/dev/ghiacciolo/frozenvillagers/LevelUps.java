@@ -33,6 +33,7 @@ final class LevelUps implements Listener {
     private static final long GIVE_UP_WHILE_TRADING = 2400;
 
     private final Plugin plugin;
+    private final Marks marks;
     private final VillagerTracker tracker;
     // A transient modifier is never saved, so a villager can't stay stuck
     // without speed if the server stops during a level up.
@@ -40,8 +41,9 @@ final class LevelUps implements Listener {
     private final Set<UUID> running = new HashSet<>();
     private final Set<BukkitTask> tasks = new HashSet<>();
 
-    LevelUps(Plugin plugin, VillagerTracker tracker) {
+    LevelUps(Plugin plugin, Marks marks, VillagerTracker tracker) {
         this.plugin = plugin;
+        this.marks = marks;
         this.tracker = tracker;
         this.standStill = new AttributeModifier(new NamespacedKey(plugin, "level_up"), -1,
                 AttributeModifier.Operation.MULTIPLY_SCALAR_1);
@@ -62,14 +64,15 @@ final class LevelUps implements Listener {
      * Also checked every few seconds, in case the screen close was missed. The
      * level and XP of each attempt are remembered: vanilla only plans a level
      * up after a trade, which always changes the XP, so the same values never
-     * need a second try.
+     * need a second try. They are saved on the villager, so a chunk that loads
+     * again doesn't wake it up for another useless try.
      */
     void checkPending(Tracked entry) {
         if (entry.levelingUp || !tracker.controlsAi(entry)) {
             return;
         }
         Villager villager = entry.villager;
-        if (isPending(villager) && !villager.isTrading() && attemptKey(villager) != entry.lastLevelAttempt) {
+        if (isPending(villager) && !villager.isTrading() && attemptKey(villager) != marks.getLong(villager, marks.levelAttempt, -1)) {
             start(entry);
         }
     }
@@ -91,7 +94,7 @@ final class LevelUps implements Listener {
         if (!running.add(entry.id)) {
             return;
         }
-        entry.lastLevelAttempt = attemptKey(villager);
+        marks.setLong(villager, marks.levelAttempt, attemptKey(villager));
         int level = villager.getVillagerLevel();
         tracker.beginLevelUp(entry);
         AttributeInstance speed = villager.getAttribute(Attribute.MOVEMENT_SPEED);

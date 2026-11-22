@@ -27,6 +27,7 @@ final class Settings {
     final int pulseActive;
 
     final boolean trappedEnabled;
+    final boolean trappedPulse;
 
     final boolean surplusEnabled;
     final int surplusCrowd;
@@ -73,6 +74,7 @@ final class Settings {
         pulseActive = active;
 
         trappedEnabled = config.getBoolean("trapped.enabled", true);
+        trappedPulse = config.getBoolean("trapped.pulse", false);
 
         surplusEnabled = config.getBoolean("surplus.enabled", true);
         surplusCrowd = atLeast(config, "surplus.crowd", 12, 2);

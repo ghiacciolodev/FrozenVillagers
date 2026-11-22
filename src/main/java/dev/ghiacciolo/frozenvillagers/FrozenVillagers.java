@@ -22,7 +22,7 @@ public final class FrozenVillagers extends JavaPlugin {
         marks = new Marks(this);
         tracker = new VillagerTracker(this, marks, settings);
         restocker = new Restocker(this, marks, tracker, settings);
-        levelUps = new LevelUps(this, tracker);
+        levelUps = new LevelUps(this, marks, tracker);
         birthLimit = new BirthLimit(tracker, settings);
         tracker.onChecked(levelUps::checkPending);
         tracker.onStartedHandling(restocker::rememberDemand);

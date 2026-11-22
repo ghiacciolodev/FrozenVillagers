@@ -1,8 +1,6 @@
 package dev.ghiacciolo.frozenvillagers;
 
 import dev.ghiacciolo.frozenvillagers.Settings.RestockMode;
-import dev.ghiacciolo.frozenvillagers.Tracked.Control;
-import dev.ghiacciolo.frozenvillagers.Tracked.Reason;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -50,11 +48,7 @@ final class Restocker implements Listener {
     /** Whether the plugin restocks this villager instead of vanilla. */
     boolean handles(Villager villager) {
         Tracked entry = tracker.get(villager);
-        if (entry == null) {
-            return false;
-        }
-        return entry.control == Control.FROZEN
-                || (entry.control == Control.PULSED && entry.reason == Reason.TRAPPED);
+        return entry != null && entry.isRestockedByPlugin();
     }
 
     // Runs before the trade screen opens, so the player sees the restocked trades.

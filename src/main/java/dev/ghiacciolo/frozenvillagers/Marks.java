@@ -38,6 +38,7 @@ final class Marks {
     final NamespacedKey restockedAt;
     final NamespacedKey homelessSince;
     final NamespacedKey demand;
+    final NamespacedKey levelAttempt;
 
     Marks(Plugin plugin) {
         mode = new NamespacedKey(plugin, "mode");
@@ -48,6 +49,7 @@ final class Marks {
         restockedAt = new NamespacedKey(plugin, "restocked_at");
         homelessSince = new NamespacedKey(plugin, "homeless_since");
         demand = new NamespacedKey(plugin, "demand");
+        levelAttempt = new NamespacedKey(plugin, "level_attempt");
     }
 
     Mode mode(Villager villager) {

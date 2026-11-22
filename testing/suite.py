@@ -35,7 +35,7 @@ DEFAULTS = {
     'migration': {'adopt-other-optimizers': 'false'},
     'freeze': {'disable-physics': 'false', 'max-command-radius': 32},
     'pulse': {'cycle': 40, 'active': 8},
-    'trapped': {'enabled': 'true'},
+    'trapped': {'enabled': 'true', 'pulse': 'false'},
     'surplus': {'enabled': 'true', 'crowd': 12, 'grace': 0, 'disable-collisions': 'false'},
     'births': {'enabled': 'false', 'max-surplus': 6, 'radius': 64},
     'restock': {'enabled': 'true', 'times': '[1000, 6000, 11000]', 'mode': 'reset-uses',
@@ -90,8 +90,15 @@ def inspect(tag):
 
 def status():
     out = rc('fv status')
-    numbers = re.search(r'Loaded villagers: (\d+), frozen by staff: (\d+), pulsed trapped: (\d+), pulsed surplus: (\d+)', out)
-    return [int(n) for n in numbers.groups()] if numbers else None
+    total = re.search(r'Loaded villagers: (\d+)', out)
+    numbers = re.search(r'Frozen by staff: (\d+), trapped: (\d+), surplus: (\d+)', out)
+    if not total or not numbers:
+        return None
+    return [int(total.group(1))] + [int(n) for n in numbers.groups()]
+
+
+def verdict(tag):
+    return rc(f'fv check {sel(tag)}')
 
 
 def summon(tag, x, z, profession='librarian', xp=5, level=1, y=Y, extra=''):
@@ -151,14 +158,25 @@ def test_trapped():
     cell(x, z)
     summon('cell', x, z)
     time.sleep(0.5)
-    check('trapped trade-locked villager without a bed is pulsed', state('cell') == 'pulsed (trapped)', inspect('cell'))
+    check('trapped trade-locked villager without a bed is asleep', state('cell') == 'asleep (trapped)', inspect('cell'))
     v = q('cell')
-    check('pulsed trapped villager has item pickup off', v.get('pickup') == 'false', v)
-    check('pulsed trapped villager has pushing off', v.get('collidable') == 'false', v)
-    check('pulsed trapped villager keeps its physics', v.get('ai') == 'true', v)
+    check('asleep trapped villager has item pickup off', v.get('pickup') == 'false', v)
+    check('asleep trapped villager has pushing off', v.get('collidable') == 'false', v)
+    check('asleep trapped villager keeps its physics', v.get('ai') == 'true', v)
+    samples = sample_aware('cell', 4)
+    check('asleep trapped villager never gets its AI back by itself', not any(samples),
+          f'{sum(samples)}/{len(samples)} awake')
+    out = verdict('cell')
+    check('/fv check says a trapped villager is optimized', 'optimized, trapped' in out and 'NOT' not in out, out)
+
+    config(trapped__pulse='true')
+    check('trapped.pulse true pulses trapped villagers', state('cell') == 'pulsed (trapped)', inspect('cell'))
     samples = sample_aware('cell', 4)
     share = sum(samples) / max(1, len(samples))
-    check('pulsed villager is awake part of the time', 0.05 < share < 0.5, f'awake share {share:.2f}')
+    check('...awake part of the time', 0.05 < share < 0.5, f'awake share {share:.2f}')
+    config()
+    check('trapped.pulse false puts them back to sleep', state('cell') == 'asleep (trapped)'
+          and not any(sample_aware('cell', 1.5)), inspect('cell'))
 
     x, z = site(1)
     cell(x, z)
@@ -166,11 +184,15 @@ def test_trapped():
     summon('fresh', x, z, xp=0)
     wait_checks()
     check('villager that never traded is left alone (rerolling)', state('fresh') == 'normal', inspect('fresh'))
+    out = verdict('fresh')
+    check('/fv check says why: it never traded', 'NOT optimized' in out and 'never traded' in out, out)
 
     x, z = site(2)
     summon('open', x, z)
     wait_checks()
     check('villager that can walk around is left alone', state('open') == 'normal', inspect('open'))
+    out = verdict('open')
+    check('/fv check says why: it can walk out', 'NOT optimized' in out and 'can walk out to the' in out, out)
 
     x, z = site(3)
     rc(f'fill {x - 1} {Y} {z - 1} {x + 1} {Y} {z + 1} stone')
@@ -184,7 +206,7 @@ def test_trapped():
     rc(f'setblock {x} {Y} {z} air')
     summon('fence', x, z)
     wait_checks()
-    check('villager inside a ring of fences is pulsed', state('fence') == 'pulsed (trapped)', inspect('fence'))
+    check('villager inside a ring of fences is pulsed', state('fence') == 'asleep (trapped)', inspect('fence'))
 
     x, z = site(5)
     cell(x, z)
@@ -199,7 +221,7 @@ def test_trapped():
        f'Tags:["cart","fvt"],PersistenceRequired:1b,'
        f'VillagerData:{{profession:"minecraft:librarian",level:1,type:"minecraft:plains"}},Xp:5}}]}}')
     wait_checks()
-    check('villager in a minecart is pulsed', state('cart') == 'pulsed (trapped)', inspect('cart'))
+    check('villager in a minecart is pulsed', state('cart') == 'asleep (trapped)', inspect('cart'))
 
     x, z = site(7)
     cell(x, z)
@@ -208,6 +230,7 @@ def test_trapped():
     rc(f'fvtest home {sel("bed")} {x + 1} {Y} {z + 1}')
     wait_checks()
     check('trapped villager with a bed is left alone (iron farms)', state('bed') == 'normal', inspect('bed'))
+    check('/fv check says why: it has a bed', 'has a bed' in verdict('bed'), verdict('bed'))
 
     x, z = site(8)
     cell(x, z)
@@ -234,7 +257,7 @@ def test_trapped():
     rc(f'fill {x - 1} {Y + 2} {z - 1} {x + 1} {Y + 2} {z + 1} glass')
     summon('click', x, z, profession='shepherd')
     wait_checks()
-    check('a cell open above the workstation for clicking is still a cell', state('click') == 'pulsed (trapped)',
+    check('a cell open above the workstation for clicking is still a cell', state('click') == 'asleep (trapped)',
           inspect('click'))
 
     # Without the roof the villager can jump on the workstation and walk out.
@@ -244,9 +267,22 @@ def test_trapped():
     rc(f'setblock {x} {Y + 1} {z - 1} air')
     rc(f'fill {x - 1} {Y + 2} {z - 1} {x + 1} {Y + 2} {z + 1} air')
     summon('noroof', x, z, profession='shepherd')
+    # Right away: with its AI on it may soon jump out for real.
+    out = inspect('noroof')
+    check('/fv inspect says it can jump out over the workstation', 'jump out to the north' in out, out)
     wait_checks()
     check('without a roof it can jump on the workstation, so it is left alone', state('noroof') == 'normal',
           inspect('noroof'))
+
+    # The opening is 1.5 blocks high, lower than the villager: still a cell.
+    x, z = site(28)
+    cell(x, z)
+    rc(f'setblock {x} {Y + 1} {z - 1} oak_slab[type=top]')
+    rc(f'setblock {x} {Y} {z - 1} air')
+    rc(f'fill {x - 1} {Y + 2} {z - 1} {x + 1} {Y + 2} {z + 1} glass')
+    summon('low', x, z)
+    wait_checks()
+    check('an opening 1.5 blocks high is too low to walk out', state('low') == 'asleep (trapped)', inspect('low'))
 
     # Open the first cell: the villager wakes up and gets everything back.
     x, z = site(0)
@@ -258,7 +294,7 @@ def test_trapped():
     rc(f'fill {x + 1} {Y} {z} {x + 1} {Y + 1} {z} glass')
     rc(f'tp {sel("cell")} {x + 0.5} {Y} {z + 0.5}')
     wait_checks()
-    check('closing it again pulses it again', state('cell') == 'pulsed (trapped)', inspect('cell'))
+    check('closing it again puts it back to sleep', state('cell') == 'asleep (trapped)', inspect('cell'))
 
     config(trapped__enabled='false')
     check('trapped.enabled false gives it its AI back', state('cell') == 'normal' and q('cell').get('aware') == 'true')
@@ -272,7 +308,15 @@ def test_damage():
     time.sleep(0.5)
     rc(f'damage {sel("hurt")} 1 minecraft:generic')
     samples = sample_aware('hurt', 3)
-    check('a hurt pulsed villager stays awake to run away', all(samples), f'{sum(samples)}/{len(samples)} awake')
+    check('a hurt asleep villager wakes up', all(samples), f'{sum(samples)}/{len(samples)} awake')
+    time.sleep(7.5)  # 10 seconds after the hit
+    samples = sample_aware('hurt', 1.5)
+    check('...and goes back to sleep 10 seconds later', not any(samples), f'{sum(samples)}/{len(samples)} awake')
+
+    print(rc(f'fvtest place {x + 2} {Y} {z} lectern'))
+    samples = sample_aware('hurt', 2)
+    check('a workstation placed nearby wakes an asleep villager', all(samples), f'{sum(samples)}/{len(samples)} awake')
+    rc(f'setblock {x + 2} {Y} {z} air')
 
 
 # ---------------------------------------------------------------- foreign
@@ -300,7 +344,7 @@ def test_foreign():
     check('/fv adopt takes over a villager another plugin froze', 'Adopted: 1 villager' in out, out)
     check('...and removes the BubbleVillagers marker, so it no longer refreezes it',
           'Removed the markers' in out and 'bvmark=false' in rc(f'fvtest hasbvmark {sel("foreign")}'), out)
-    check('...in a cell it is pulsed like ours', state('foreign') == 'pulsed (trapped)', inspect('foreign'))
+    check('...in a cell it is asleep like ours', state('foreign') == 'asleep (trapped)', inspect('foreign'))
     x, z = site(23)
     summon('migrated', x, z)
     rc(f'tag {sel("migrated")} add frozenvillagers_ignore')
@@ -331,7 +375,7 @@ def test_foreign():
           state('bvhall') == 'normal' and q('bvhall').get('aware') == 'false', inspect('bvhall'))
     config(migration__adopt_other_optimizers='true')
     wait_checks()
-    check('with it on, a BubbleVillagers villager is adopted by itself', state('bvhall') == 'pulsed (trapped)',
+    check('with it on, a BubbleVillagers villager is adopted by itself', state('bvhall') == 'asleep (trapped)',
           inspect('bvhall'))
     check('...and loses the BubbleVillagers marker', 'bvmark=false' in rc(f'fvtest hasbvmark {sel("bvhall")}'))
     check('...but a villager another plugin froze without that marker is left alone',
@@ -378,7 +422,7 @@ def test_staff():
     check('/fv unfreeze excludes it even in a cell', state('excl') == 'normal' and 'excluded' in inspect('excl'), inspect('excl'))
     rc(f'fv auto {sel("excl")}')
     wait_checks()
-    check('/fv auto puts it back to automatic', state('excl') == 'pulsed (trapped)', inspect('excl'))
+    check('/fv auto puts it back to automatic', state('excl') == 'asleep (trapped)', inspect('excl'))
     rc(f'fv unfreeze {sel("excl")}')
 
     config(freeze__disable_physics='true')
@@ -499,9 +543,10 @@ def test_level_up():
     rc(f'fvtest trade {sel("lv")}')
     levelled = wait_for(lambda: q('lv').get('level') == '2', 8)
     after = q('lv')
-    check('a pulsed villager levels up after a trade', levelled, after)
+    check('an asleep trapped villager levels up after a trade', levelled, after)
     check('it gets the new trades of level 2', int(after.get('recipes', 0)) > int(before.get('recipes', 0)), (before, after))
-    check('it goes back to pulsed after the level up', wait_for(lambda: state('lv') == 'pulsed (trapped)', 3), inspect('lv'))
+    check('it goes back to sleep after the level up', wait_for(lambda: state('lv') == 'asleep (trapped)', 3)
+          and q('lv').get('aware') == 'false', inspect('lv'))
     check('the stand still modifier is removed', q('lv').get('slowed') == 'false', q('lv'))
     rc(f'fv unfreeze {sel("lv")}')
     time.sleep(4)
@@ -536,15 +581,15 @@ def test_level_up():
     # XP without a planned level up, like after /data: vanilla won't level
     # it up, the plugin must try once and then give up.
     check('XP without a planned level up wakes it once', wait_for(lambda: state('lv4') == 'awake to level up', 4), inspect('lv4'))
-    check('...then it gives up and is pulsed again', wait_for(lambda: state('lv4') == 'pulsed (trapped)', 20), inspect('lv4'))
+    check('...then it gives up and is asleep again', wait_for(lambda: state('lv4') == 'asleep (trapped)', 20), inspect('lv4'))
     time.sleep(3)
-    check('...and does not try again with the same XP', state('lv4') == 'pulsed (trapped)' and q('lv4').get('level') == '1', inspect('lv4'))
+    check('...and does not try again with the same XP', state('lv4') == 'asleep (trapped)' and q('lv4').get('level') == '1', inspect('lv4'))
 
     x, z = site(22)
     cell(x, z)
     summon('lv5', x, z, level=5, xp=500)
     time.sleep(2)
-    check('a master villager is never woken for a level up', state('lv5') == 'pulsed (trapped)', inspect('lv5'))
+    check('a master villager is never woken for a level up', state('lv5') == 'asleep (trapped)', inspect('lv5'))
 
 
 # ---------------------------------------------------------------- surplus
@@ -678,14 +723,14 @@ def test_config():
     check('other worlds only: trapped villagers wake up', state('fence') == 'normal')
     check('...staff frozen villagers stay frozen', state('frz') == 'frozen')
     config()
-    check('all worlds again: trapped villagers are pulsed again', state('fence') == 'pulsed (trapped)')
+    check('all worlds again: trapped villagers are asleep again', state('fence') == 'asleep (trapped)')
 
     out = config(pulse__active=100, restock__times='[abc, 30000]', restock__mode='sometimes', check_interval=5)
     check('pulse.active longer than the cycle gives a warning', 'pulse.active' in out, out)
     check('bad restock times give warnings', 'abc' in out and '30000' in out, out)
     check('a bad restock mode gives a warning', 'restock.mode' in out, out)
     check('a too short check-interval gives a warning', 'check-interval' in out, out)
-    check('the plugin keeps working with bad values', state('fence') == 'pulsed (trapped)', inspect('fence'))
+    check('the plugin keeps working with bad values', state('fence') == 'asleep (trapped)', inspect('fence'))
     config()
 
 
@@ -698,22 +743,24 @@ def test_chunk_reload():
     time.sleep(3)
     check('after a chunk reload staff frozen stay frozen', state('frz') == 'frozen', inspect('frz'))
     check('...with pushing off again (it is not saved)', q('frz').get('collidable') == 'false', q('frz'))
-    check('...trapped villagers are pulsed again', state('fence') == 'pulsed (trapped)', inspect('fence'))
+    check('...trapped villagers are asleep again', state('fence') == 'asleep (trapped)', inspect('fence'))
     check('...excluded villagers stay excluded', state('excl') == 'normal' and 'excluded' in inspect('excl'))
+    check('...a failed level up is not tried again with the same XP', state('lv4') == 'asleep (trapped)',
+          inspect('lv4'))
 
 
 def test_disable():
     rc(f'fv auto {sel("cell")}')
-    check('before: the trapped villager is pulsed', state('cell') == 'pulsed (trapped)', inspect('cell'))
+    check('before: the trapped villager is asleep', state('cell') == 'asleep (trapped)', inspect('cell'))
     rc('fvtest disable')
     time.sleep(0.5)
     v = q('cell')
-    check('disabling the plugin gives pulsed villagers their full AI back',
+    check('disabling the plugin gives asleep villagers their full AI back',
           v.get('aware') == 'true' and v.get('pickup') == 'true' and v.get('collidable') == 'true', v)
     check('...and keeps staff frozen villagers frozen', q('frz').get('aware') == 'false', q('frz'))
     rc('fvtest enable')
     time.sleep(1)
-    check('enabling it again pulses them again', state('cell') == 'pulsed (trapped)', inspect('cell'))
+    check('enabling it again puts them back to sleep', state('cell') == 'asleep (trapped)', inspect('cell'))
 
 
 def test_status():
@@ -722,6 +769,17 @@ def test_status():
     cost = re.search(r'Plugin cost: ([\d.]+) microseconds', rc('fv status'))
     check('/fv status shows the plugin cost', cost is not None, rc('fv status'))
     check('...and it is tiny (under 0.5 ms per tick)', cost is not None and float(cost.group(1)) < 500, rc('fv status'))
+    out = rc('fv status')
+    check('/fv status groups the villagers that are not optimized by reason',
+          re.search(r'Not optimized: \d+\. .*has a bed: \d+', out) is not None, out)
+    out = rc('fv scan @e[type=villager,tag=fvt,x=0,y=-70,z=0,dx=50,dy=20,dz=15]')
+    check('/fv scan with a selector counts the villagers in it',
+          re.search(r'Villagers found: \d+, AI on right now: \d+', out) is not None
+          and 'Frozen by staff:' in out and 'Not optimized:' in out, out)
+    out = rc('fv scan')
+    check('/fv scan from the console asks for a selector', 'selector' in out, out)
+    out = rc('fv check @e[type=villager,tag=fvt]')
+    check('/fv check with many villagers asks for one', 'exactly one' in out, out)
 
 
 def after_restart():
@@ -730,7 +788,7 @@ def after_restart():
         rc(f'forceload add {area}')
     time.sleep(4)
     check('after a restart staff frozen stay frozen', state('frz') == 'frozen' and q('frz').get('aware') == 'false', q('frz'))
-    check('...trapped villagers are pulsed again', state('fence') == 'pulsed (trapped)', inspect('fence'))
+    check('...trapped villagers are asleep again', state('fence') == 'asleep (trapped)', inspect('fence'))
     check('...excluded villagers stay excluded', 'excluded' in inspect('excl'))
 
 

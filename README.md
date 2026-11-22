@@ -64,7 +64,7 @@ What the plugin never does:
 
 1. Download the jar from [Modrinth](https://modrinth.com/plugin/frozenvillagers) or the [GitHub releases](https://github.com/ghiacciolodev/FrozenVillagers/releases) and put it in the `plugins` folder.
 2. Start the server. The defaults work out of the box: trapped and surplus villagers are handled automatically.
-3. Optionally freeze your biggest trading halls with `/fv freeze <radius>`, and check what the plugin does with `/fv status` and `/fv inspect`.
+3. Check what the plugin does: `/fv status` for the whole server, `/fv scan` for the villagers around you, `/fv check` for the one you look at. Villagers that are not optimized are always shown with the reason.
 
 If you used BubbleVillagers or VillagerOptimizer before, read [Switching](#switching-from-bubblevillagers-or-villageroptimizer).
 
@@ -79,22 +79,43 @@ Two things still run every tick with the AI off, and the plugin turns them off t
 - **item pickup**: the villager looks for items on the ground around it every tick
 - **pushing**: the villager looks for entities to push every tick
 
-A "slowed down" villager (called *pulsed* in `/fv inspect`) gets its AI back for 1 second every 10 seconds. That is enough to notice a new bed or job, gossip, and react. Some things give it its full AI right away:
+The plugin turns the AI off in two ways:
+
+- **asleep**: trapped villagers. The AI stays off and only comes back for a reason, listed below. A villager locked in a cell with a job it can't lose has nothing to do with its AI: every time it gets it back it starts searching again for a bed and a bell it can never reach, and those searches are the most expensive part of a villager.
+- **pulsed** ("slowed down"): surplus villagers. The AI comes back for 1 second every 10 seconds. That is enough to notice a new bed or job, gossip, and react.
+
+Some things give both their full AI right away:
 
 - **getting hurt**: full AI for 10 seconds, so it can run away
 - **a bed, workstation or bell placed within 16 blocks**: full AI for 30 seconds, so it claims it as fast as in vanilla, for example when you fill a trading hall from a storage of jobless villagers
-- **a raid nearby**: nothing is slowed down while it lasts
+- **a level up**: see [Level ups](#level-ups)
+- **a raid nearby**: no surplus villager is slowed down while it lasts
 
 ### Trapped villagers
 
-A villager is trapped when it can't move to any of the four blocks next to it, by walking, falling or jumping one block up. The plugin checks this with the real collision shapes of the blocks, so glass, panes, fences, walls, slabs and workstations all count with their real size. A wall one block high with room above isn't a cell, because the villager can jump over it. A closed wooden door isn't a wall either, because villagers open them. Villagers in boats and minecarts are trapped too.
+A villager is trapped when it can't move to any of the four blocks next to it, by walking, falling or jumping one block up. The plugin checks this with the real collision shapes of the blocks and the real size of the villager (0.6 wide, 1.95 high), so glass, panes, fences, walls, slabs and workstations all count with their real size. Villagers in boats and minecarts are trapped too.
 
-A trapped villager is only slowed down if, on top of that:
+A side doesn't have to be walled up, it only has to be impossible to get through. The usual open side of a trading cell counts as closed:
+
+| Open side | Trapped? |
+|---|---|
+| Workstation in front, open block above it to click the villager, roof right above the villager's head | Yes: no room to jump on the workstation |
+| The same without a roof above the villager | No: it can jump on the workstation and walk out, like in vanilla |
+| An opening 1 or 1.5 blocks high, for example under a top slab or trapdoor | Yes: the villager is 1.95 blocks high |
+| An opening 2 blocks high | No |
+| A wall one block high with room above | No: it can jump over it |
+| A wooden door, even closed | No: villagers open them |
+
+`/fv check` and `/fv inspect` say which side is open when a villager is not trapped, with the coordinates of the block.
+
+A trapped villager is only put to sleep if, on top of that:
 
 - **it has a profession and traded at least once.** A villager that never traded can still change job, which is how players reroll trades by breaking and replacing the workstation. That needs the full AI, so those are left alone.
 - **it has no bed.** Iron farm villagers need a bed and their AI to make golems, so a villager with a bed is never touched.
 
 When a player opens the cell, the villager gets its full AI back within a few seconds.
+
+With `trapped.pulse: true` trapped villagers are pulsed like surplus villagers instead, as in earlier versions. It costs a lot more and they gain nothing from it.
 
 ### Surplus villagers
 
@@ -129,7 +150,7 @@ Each villager has one of three modes, saved on the villager:
 
 ### Restocks
 
-Vanilla villagers restock by walking to their workstation during work hours, which a frozen or slowed down villager can't do. So the plugin restocks them when a player opens their trades, once per restock window. By default the windows are at 07:00, 12:00 and 17:00 in game time.
+Vanilla villagers restock by walking to their workstation during work hours, which a frozen or trapped villager can't do. So the plugin restocks them when a player opens their trades, once per restock window. By default the windows are at 07:00, 12:00 and 17:00 in game time.
 
 - A click with full trades doesn't spend the window.
 - If several windows passed since the last restock, the villager restocks once.
@@ -143,7 +164,9 @@ Villagers the plugin handles only restock at these times, also if their bit of A
 
 After a trade that earns a level, vanilla waits 40 ticks after the trade screen closes and levels the villager up, in its AI tick. With the AI off that tick never runs.
 
-So when the trade screen of a frozen or slowed down villager closes and it has enough XP for the next level, the plugin turns its AI back on, holds it in place, and lets vanilla do the level up. About 2 seconds later the villager has its new level and trades, and it is frozen again. The plugin never levels a villager up by itself: vanilla keeps an internal flag that would give it a second level later.
+So when the trade screen of a frozen, asleep or slowed down villager closes and it has enough XP for the next level, the plugin turns its AI back on, holds it in place, and lets vanilla do the level up. About 2 seconds later the villager has its new level and trades, and it is frozen again. The plugin never levels a villager up by itself: vanilla keeps an internal flag that would give it a second level later.
+
+If vanilla doesn't level it up, for example because its XP was changed with a command, the plugin gives up after 15 seconds and remembers the level and XP on the villager, so it doesn't wake it up again for nothing, not even after a restart.
 
 ### Birth limit
 
@@ -166,7 +189,7 @@ The plugin itself does very little work:
 
 The aware flag and item pickup are saved with the villager, so a frozen villager stays frozen after a restart. Next to them the plugin saves markers for what it changed, the staff mode, the last restock and when the villager lost its bed. Pushing is not saved by Minecraft, so the plugin turns it off again whenever the villager loads.
 
-When the plugin is disabled, slowed down villagers get their full AI back right away. Paper disables plugins before it saves the world when the server stops, so this also holds if you stop the server and remove the plugin. Villagers frozen by staff stay frozen: unfreeze them first if you remove the plugin.
+When the plugin is disabled, asleep and slowed down villagers get their full AI back right away. Paper disables plugins before it saves the world when the server stops, so this also holds if you stop the server and remove the plugin. Villagers frozen by staff stay frozen: unfreeze them first if you remove the plugin.
 
 ## Commands
 
@@ -174,15 +197,29 @@ All commands need `frozenvillagers.admin`, which ops have by default. `/fv` is s
 
 | Command | What it does |
 |---|---|
+| `/fv check [selector]` | Says in one line whether the villager is optimized, and if not, why |
+| `/fv inspect [selector]` | Everything about one villager: the plugin's decision and why, its AI, pickup, pushing and physics right now, its bed, workstation and restock |
+| `/fv scan [radius\|selector]` | Counts the villagers around you (16 blocks by default), optimized or not, with the reasons, and marks the ones that are not optimized with red particles for 10 seconds, only for you |
+| `/fv status` | The same for every loaded villager, with how many have their AI on right now and the plugin's own cost per tick |
 | `/fv freeze [radius\|selector]` | Freezes villagers |
 | `/fv unfreeze [radius\|selector]` | Gives them their AI back and excludes them from the automatic features |
 | `/fv auto [radius\|selector]` | Puts them back to automatic |
 | `/fv adopt [radius\|selector]` | Takes over villagers whose AI another plugin turned off |
-| `/fv inspect [selector]` | Shows what the plugin does with a villager and why, its bed, workstation and restock |
-| `/fv status` | Counts loaded, frozen and slowed down villagers and villagers another plugin turned off, and shows the plugin's own cost per tick |
 | `/fv reload` | Reloads the config |
 
-Without an argument a command works on the villager you are looking at. A number is a radius around you. A selector like `@e[type=villager,distance=..10]` works from the console too.
+Without an argument a command works on the villager you are looking at, except `scan`, which uses a radius of 16. A number is a radius around you. A selector like `@e[type=villager,distance=..10]` works from the console too.
+
+The reasons a villager is not optimized, as `/fv status` and `/fv scan` group them:
+
+| Reason | What to do |
+|---|---|
+| has a bed | Nothing: iron farms and breeders need their AI |
+| can leave its cell | `/fv inspect` says which side is open. Close it, or `/fv freeze` the villager |
+| never traded | Trade once, or `/fv freeze` it |
+| small crowd, homeless for a short time | Jobless villagers outside a big storage. They are slowed down once there are enough of them for long enough |
+| baby | Nothing: babies are never touched |
+| excluded by staff | `/fv auto` puts it back to automatic |
+| AI off by another plugin, NoAI by another plugin, NPC, ignore tag | Nothing, or `/fv adopt` for villagers of another optimizer |
 
 ## Configuration
 
@@ -199,6 +236,7 @@ pulse:
   active: 20
 trapped:
   enabled: true
+  pulse: false
 surplus:
   enabled: true
   crowd: 12
@@ -223,7 +261,8 @@ restock:
 - `freeze.disable-physics`: frozen villagers also lose their physics (NoAI). Only for villagers standing on solid ground.
 - `freeze.max-command-radius`: the largest radius for `/fv freeze`, `unfreeze`, `auto` and `adopt`.
 - `pulse.cycle`, `pulse.active`: slowed down villagers have their AI for `active` ticks every `cycle` ticks.
-- `trapped.enabled`: slow down [trapped villagers](#trapped-villagers).
+- `trapped.enabled`: turn off the AI of [trapped villagers](#trapped-villagers).
+- `trapped.pulse`: pulse trapped villagers instead of keeping them asleep, as in earlier versions.
 - `surplus.enabled`, `crowd`, `grace`: slow down [surplus villagers](#surplus-villagers), with the crowd size and the ticks without a bed.
 - `surplus.disable-collisions`: turn off pushing between surplus villagers. Saves work in big crowds, but entity cramming no longer kills them, so a crowd can grow without limit. Use it together with the birth limit.
 - `births`: the [birth limit](#birth-limit).
@@ -245,7 +284,7 @@ Villagers optimized by those plugins have their AI turned off, and FrozenVillage
 
 `/fv adopt` only reaches villagers in loaded chunks. To adopt the ones in the rest of the world as players visit them, turn on `migration.adopt-other-optimizers` and run `/fv reload`: every villager with the old plugin's marker is then adopted when its chunk loads. The marker says for sure which plugin optimized the villager, so villagers whose AI other plugins turned off, like NPCs or shops, are still left alone. Turn the option off again once `/fv status` shows no villagers without AI because of another plugin.
 
-Adopting also removes the marker the old plugin keeps on each villager (BubbleVillagers, VillagerOptimizer and AntiVillagerLag use one). Without that, the old plugin would turn their AI off again the next time they load, as long as it is installed. Adopted villagers are then handled like any other: trapped ones are slowed down and restock and level up again, the others get their AI back. Villagers in unloaded chunks keep the old state until you adopt them when they are loaded.
+Adopting also removes the marker the old plugin keeps on each villager (BubbleVillagers, VillagerOptimizer and AntiVillagerLag use one). Without that, the old plugin would turn their AI off again the next time they load, as long as it is installed. Adopted villagers are then handled like any other: trapped ones are put to sleep and restock and level up again, the others get their AI back. Villagers in unloaded chunks keep the old state until you adopt them when they are loaded.
 
 This was tested on a server with 4,000 villagers optimized by BubbleVillagers: adopting took under a second, the villagers stayed adopted after a restart with both plugins installed, and after BubbleVillagers was removed.
 
@@ -274,6 +313,8 @@ Villagers with their AI off at the end of the measurement:
 
 Slowed down villagers get their AI back for 1 second every 10, so some of them are always awake. Villages and iron farms are never touched.
 
+These results were measured with an earlier version, where trapped villagers were pulsed. That is now `trapped.pulse: true`. By default they now stay asleep, like the halls frozen by staff in the last row.
+
 ### Only villagers without a job
 
 1,144 villagers: 32 storage pens with 30 jobless adults and nitwits and 5 babies each, like the storage of a breeder, and the same 8 iron farms.
@@ -298,7 +339,7 @@ FrozenVillagers slowed down 875 of the 960 adults. The 160 babies and the iron f
 
 Turning the features on took effect within a minute and covered all 1,000 trading cells and the 2,000 villagers in the pens. The 1,000 free villagers in the field kept their full AI until staff froze them. With 4,000 villagers the plugin itself cost about 0.25 ms per tick.
 
-In a trading hall the slowed down villagers still move a little: each one gets its AI for 1 second every 10, and the seconds are spread out, so at any moment about 1 in 10 turns its head or shuffles in its cell. Use `/fv freeze` on a hall to keep it completely still.
+This test was run with an earlier version, where trapped villagers were pulsed: each one got its AI for 1 second every 10, so at any moment about 1 in 10 turned its head or shuffled in its cell. By default they now stay asleep and still, like with `/fv freeze`.
 
 ## Compatibility
 
