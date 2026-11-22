@@ -146,8 +146,14 @@ final class Commands implements TabExecutor {
                 sender.sendMessage("A radius only works for players. From the console, give a selector.");
                 return null;
             }
-            int radius = Integer.parseInt(target);
             int max = plugin.settings().maxCommandRadius;
+            int radius;
+            try {
+                radius = Integer.parseInt(target);
+            } catch (NumberFormatException e) {
+                // Too many digits for an int: out of range like any other big number.
+                radius = Integer.MAX_VALUE;
+            }
             if (radius < 1 || radius > max) {
                 sender.sendMessage("The radius must be between 1 and " + max + ".");
                 return null;
